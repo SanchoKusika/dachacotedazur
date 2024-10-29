@@ -1,0 +1,21 @@
+{
+  "name": "Dacha Côté",
+  "short_name": "Dacha Côté",
+  "icons": [
+    {
+      "src": "/./img/favicons/web-app-manifest-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/./img/favicons/web-app-manifest-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "theme_color": "#dbd1bd",
+  "background_color": "#dbd1bd",
+  "display": "standalone"
+}
