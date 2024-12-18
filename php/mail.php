@@ -1,5 +1,10 @@
 <?php
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require './vendor/autoload.php'; // Composer
+
 if (
     !empty(trim($_POST['first-name'])) &&
     !empty(trim($_POST['last-name'])) &&
@@ -11,90 +16,115 @@ if (
     filter_var($_POST['email'], FILTER_VALIDATE_EMAIL) &&
     !empty(trim($_POST['message']))
 ) {
+    $firstName = strip_tags(trim($_POST['first-name']));
+    $lastName = strip_tags(trim($_POST['last-name']));
+    $telephone = strip_tags(trim($_POST['telephone']));
+    $city = strip_tags(trim($_POST['city']));
+    $service = strip_tags(trim($_POST['service']));
+    $region = strip_tags(trim($_POST['region']));
+    $email = strip_tags(trim($_POST['email']));
+    $messageContent = strip_tags(trim($_POST['message']));
 
-	$mail_to = "specialist@example.com"; // Почта специалиста, куда будет отправлено письмо
-	$email_from = strip_tags(trim($_POST['email'])); // Email отправителя (клиента)
-	$name_from = strip_tags(trim($_POST['first-name'])) . " " . strip_tags(trim($_POST['last-name'])); // Имя и фамилия отправителя
-	$subject = "Новый запрос на услугу: " . strip_tags(trim($_POST['service'])); // Тема письма, включающая выбранную услугу
-	
+    $mail = new PHPMailer(true);
 
-    // Формируем текст письма
-    $message = "Вам пришло новое сообщение с сайта: <br><br>\n" .
-        "<strong>Имя:</strong> " . strip_tags(trim($_POST['first-name'])) . "<br>\n" .
-        "<strong>Фамилия:</strong> " . strip_tags(trim($_POST['last-name'])) . "<br>\n" .
-        "<strong>Телефон:</strong> " . strip_tags(trim($_POST['telephone'])) . "<br>\n" .
-        "<strong>Город:</strong> " . strip_tags(trim($_POST['city'])) . "<br>\n" .
-        "<strong>Услуга:</strong> " . strip_tags(trim($_POST['service'])) . "<br>\n" .
-        "<strong>Регион:</strong> " . strip_tags(trim($_POST['region'])) . "<br>\n" .
-        "<strong>Email:</strong> " . strip_tags(trim($_POST['email'])) . "<br>\n" .
-        "<strong>Сообщение:</strong> " . strip_tags(trim($_POST['message'])) . "<br>\n";
+    try {
+        $mail->isSMTP();
+        $mail->Host = 'smtp.timeweb.ru';
+        $mail->SMTPAuth = true;
+        $mail->Username = 'service@dachacotedazur.com'; // SMTP email
+        $mail->Password = '22k07a03p'; // SMTP password
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS; // TLS
+        $mail->Port = 587;
 
-    // Формируем тему письма
-    $subject = "=?utf-8?B?" . base64_encode($subject) . "?=";
+        $mail->setFrom('service@dachacotedazur.com', 'dachacotedazur');
+        $mail->addAddress('sanchezzkusika@gmail.com');
 
-    // Формируем заголовки письма
-    $headers = "MIME-Version: 1.0" . PHP_EOL .
-        "Content-Type: text/html; charset=utf-8" . PHP_EOL .
-        "From: " . "=?utf-8?B?" . base64_encode($name_from) . "?=" . "<" . $email_from . ">" .  PHP_EOL .
-        "Reply-To: " . $email_from . PHP_EOL;
+        $subject = "Nouvelle demande de service : " . $service;
+        $mail->Subject = $subject;
 
-    // Отправляем письмо
-    $mailResult = mail($mail_to, $subject, $message, $headers);
+        // Указание URL файла
+        $templateFile = 'https://dachacotedazur.com/php/email-template.html';
 
-    if ($mailResult) {
-        $response = [
+        // Инициализация CURL для загрузки файла
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $templateFile);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); // Следовать редиректам
+        $templateContent = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        // Проверка успешности загрузки
+        if ($httpCode !== 200 || $templateContent === false) {
+            echo json_encode([
+                'status' => false,
+                'message' => 'Не удалось загрузить HTML-шаблон.',
+            ]);
+            exit;
+        }
+
+        // Вставка данных в шаблон
+        $templateContent = str_replace(
+            ['$firstName', '$lastName', '$telephone', '$city', '$service', '$region', '$email', '$messageContent'],
+            [$firstName, $lastName, $telephone, $city, $service, $region, $email, $messageContent],
+            $templateContent
+        );
+
+        $mail->isHTML(true);
+        $mail->Body = $templateContent;
+
+        $mail->send();
+
+        echo json_encode([
             'status' => true,
-            'message' => 'Сообщение успешно отправлено'
-        ];
-    } else {
-        $response = [
+            'message' => 'Сообщение успешно отправлено',
+        ]);
+    } catch (Exception $e) {
+        echo json_encode([
             'status' => false,
-            'message' => 'Произошла ошибка при отправке письма'
-        ];
+            'message' => "Ошибка при отправке письма: {$mail->ErrorInfo}",
+        ]);
     }
-
-    echo json_encode($response);
-
 } else {
     $response = [
         'status' => false,
-        'message' => []
+        'message' => [],
     ];
 
     if (empty(trim($_POST['first-name']))) {
-        $response['message'][] = "Поле 'Имя' не может быть пустым.";
+        $response['message'][] = "Le champ 'Prénom' ne peut pas être vide.";
     }
 
     if (empty(trim($_POST['last-name']))) {
-        $response['message'][] = "Поле 'Фамилия' не может быть пустым.";
+        $response['message'][] = "Le champ 'Nom' ne peut pas être vide.";
     }
 
     if (empty(trim($_POST['telephone']))) {
-        $response['message'][] = "Поле 'Телефон' не может быть пустым.";
+        $response['message'][] = "Le champ 'Téléphone' ne peut pas être vide.";
     }
 
     if (empty(trim($_POST['city']))) {
-        $response['message'][] = "Поле 'Город' не может быть пустым.";
+        $response['message'][] = "Le champ 'Ville' ne peut pas être vide.";
     }
 
     if (empty(trim($_POST['service']))) {
-        $response['message'][] = "Поле 'Услуга' не может быть пустым.";
+        $response['message'][] = "Le champ 'Service' ne peut pas être vide.";
     }
 
     if (empty(trim($_POST['region']))) {
-        $response['message'][] = "Поле 'Регион' не может быть пустым.";
+        $response['message'][] = "Le champ 'Région' ne peut pas être vide.";
     }
 
     if (empty(trim($_POST['email']))) {
-        $response['message'][] = "Поле 'Email' не может быть пустым.";
+        $response['message'][] = "Le champ 'Email' ne peut pas être vide.";
     }
 
     if (!filter_var(trim($_POST['email']), FILTER_VALIDATE_EMAIL)) {
-        $response['message'][] = "Введите верный формат 'Email'.";
+        $response['message'][] = "Veuillez entrer un format valide pour 'Email'.";
     }
 
     if (empty(trim($_POST['message']))) {
-        $response['message'][] = "Поле 'Сообщение' не может быть пустым.";
+        $response['message'][] = "Le champ 'Message' ne peut pas être vide.";
     }
 
     echo json_encode($response);
